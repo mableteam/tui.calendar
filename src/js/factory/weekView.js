@@ -31,6 +31,7 @@ var TimeClick = require('../handler/time/click');
 var TimeCreation = require('../handler/time/creation');
 var TimeMove = require('../handler/time/move');
 var TimeResize = require('../handler/time/resize');
+var TimeMouseMove = require('../handler/time/mousemove');
 
 var DAYGRID_HANDLDERS = {
     'click': DayGridClick,
@@ -42,7 +43,8 @@ var TIMEGRID_HANDLERS = {
     'click': TimeClick,
     'creation': TimeCreation,
     'move': TimeMove,
-    'resize': TimeResize
+    'resize': TimeResize,
+    'mousemove': TimeMouseMove
 };
 var DEFAULT_PANELS = [
     {
@@ -79,7 +81,7 @@ var DEFAULT_PANELS = [
         name: 'time',
         type: 'timegrid',
         autoHeight: true,
-        handlers: ['click', 'creation', 'move', 'resize'],
+        handlers: ['click', 'creation', 'move', 'resize', 'mousemove'],
         show: true
     }
 ];
@@ -145,7 +147,8 @@ module.exports = function(baseController, layoutContainer, dragHandler, options)
         dayname: {},
         creation: {},
         move: {},
-        resize: {}
+        resize: {},
+        mousemove: {}
     };
 
     dayNameContainer = domutil.appendHTMLElement('div', weekView.container, config.classname('dayname-layout'));

@@ -109,8 +109,12 @@ TimeCreationGuide.prototype._refreshGuideElement = function(top, height, start, 
     guideElement.style.height = height + 'px';
     guideElement.style.display = 'block';
 
-    timeElement.innerHTML = datetime.format(new TZDate(start), 'HH:mm') +
-        ' - ' + datetime.format(new TZDate(end), 'HH:mm');
+    var startTimeMinutes = new Date(start).getMinutes() == 0 ? '00' : new Date(start).getMinutes().toString();
+    var endTimeMinutes = new Date(end).getMinutes() == 0 ? '00' : new Date(end).getMinutes().toString();
+    var startTimeLabel = new Date(start).getHours().toString() + ':' + startTimeMinutes;
+    var endTimeLabel = new Date(end).getHours().toString() + ':' + endTimeMinutes;
+
+    timeElement.innerHTML = startTimeLabel + ' - ' + endTimeLabel;
 
     if (bottomLabel) {
         domutil.removeClass(timeElement, config.classname('time-guide-bottom'));

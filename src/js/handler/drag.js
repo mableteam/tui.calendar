@@ -18,42 +18,46 @@ var domevent = require('../common/domevent');
  */
 function Drag(options, container) {
     domevent.on(container, 'mousedown', this._onMouseDown, this);
+    domevent.on(container, 'mousemove', this._onMouseMoveNotification, this);
 
-    this.options = util.extend({
-        distance: 10,
-        exclude: null
-    }, options);
+    this.options = util.extend(
+        {
+            distance: 10,
+            exclude: null
+        },
+        options
+    );
 
     /**
-     * @type {HTMLElement}
-     */
+   * @type {HTMLElement}
+   */
     this.container = container;
 
     /**
-     * Flag for represent current dragging session has been cancelled for exclude option.
-     * @type {boolean}
-     */
+   * Flag for represent current dragging session has been cancelled for exclude option.
+   * @type {boolean}
+   */
     this._cancelled = false;
 
     /**
-     * @type {boolean}
-     */
+   * @type {boolean}
+   */
     this._isMoved = false;
 
     /**
-     * dragging distance in pixel between mousedown and firing dragStart events
-     * @type {number}
-     */
+   * dragging distance in pixel between mousedown and firing dragStart events
+   * @type {number}
+   */
     this._distance = 0;
 
     /**
-     * @type {boolean}
-     */
+   * @type {boolean}
+   */
     this._dragStartFired = false;
 
     /**
-     * @type {object}
-     */
+   * @type {object}
+   */
     this._dragStartEventData = null;
 }
 
@@ -62,6 +66,12 @@ function Drag(options, container) {
  */
 Drag.prototype.destroy = function() {
     domevent.off(this.container, 'mousedown', this._onMouseDown, this);
+    domevent.off(
+        this.container,
+        'mousemove',
+        this._onMouseMoveNotification,
+        this
+    );
     this._isMoved = null;
     this.container = null;
 };
@@ -96,10 +106,14 @@ Drag.prototype._toggleDragEvent = function(toBind) {
 
     domutil[method + 'TextSelection'](container);
     domutil[method + 'ImageDrag'](container);
-    domevent[domMethod](global.document, {
-        mousemove: this._onMouseMove,
-        mouseup: this._onMouseUp
-    }, this);
+    domevent[domMethod](
+        global.document,
+        {
+            mousemove: this._onMouseMove,
+            mouseup: this._onMouseUp
+        },
+        this
+    );
 };
 
 /**
@@ -120,7 +134,7 @@ Drag.prototype._getEventData = function(mouseEvent) {
  */
 Drag.prototype._onMouseDown = function(mouseDownEvent) {
     var opt = this.options,
-        target = (mouseDownEvent.srcElement || mouseDownEvent.target);
+        target = mouseDownEvent.srcElement || mouseDownEvent.target;
 
     // only primary button can start drag.
     if (domevent.getMouseButton(mouseDownEvent) !== 0) {
@@ -139,12 +153,12 @@ Drag.prototype._onMouseDown = function(mouseDownEvent) {
     this._toggleDragEvent(true);
 
     /**
-     * mousedown event for firefox bug. cancelable.
-     * @event Drag#mouseDown
-     * @type {object}
-     * @property {HTMLElement} target - target element in this event.
-     * @property {MouseEvent} originEvent - original mouse event object.
-     */
+   * mousedown event for firefox bug. cancelable.
+   * @event Drag#mouseDown
+   * @type {object}
+   * @property {HTMLElement} target - target element in this event.
+   * @property {MouseEvent} originEvent - original mouse event object.
+   */
     this.fire('mousedown', this._dragStartEventData);
 };
 
@@ -178,12 +192,12 @@ Drag.prototype._onMouseMove = function(mouseMoveEvent) {
         this._dragStartFired = true;
 
         /**
-         * Drag start events. cancelable.
-         * @event Drag#dragStart
-         * @type {object}
-         * @property {HTMLElement} target - target element in this event.
-         * @property {MouseEvent} originEvent - original mouse event object.
-         */
+     * Drag start events. cancelable.
+     * @event Drag#dragStart
+     * @type {object}
+     * @property {HTMLElement} target - target element in this event.
+     * @property {MouseEvent} originEvent - original mouse event object.
+     */
         if (!this.invoke('dragStart', this._dragStartEventData)) {
             this._toggleDragEvent(false);
             this._clearData();
@@ -193,12 +207,12 @@ Drag.prototype._onMouseMove = function(mouseMoveEvent) {
     }
 
     /**
-     * CalEvents while dragging.
-     * @event Drag#drag
-     * @type {object}
-     * @property {HTMLElement} target - target element in this event.
-     * @property {MouseEvent} originEvent - original mouse event object.
-     */
+   * CalEvents while dragging.
+   * @event Drag#drag
+   * @type {object}
+   * @property {HTMLElement} target - target element in this event.
+   * @property {MouseEvent} originEvent - original mouse event object.
+   */
     this.fire('drag', this._getEventData(mouseMoveEvent));
 };
 
@@ -219,25 +233,37 @@ Drag.prototype._onMouseUp = function(mouseUpEvent) {
     if (this._isMoved) {
         this._isMoved = false;
         /**
-         * Drag end events.
-         * @event Drag#dragEnd
-         * @type {MouseEvent}
-         * @property {HTMLElement} target - target element in this event.
-         * @property {MouseEvent} originEvent - original mouse event object.
-         */
+     * Drag end events.
+     * @event Drag#dragEnd
+     * @type {MouseEvent}
+     * @property {HTMLElement} target - target element in this event.
+     * @property {MouseEvent} originEvent - original mouse event object.
+     */
         this.fire('dragEnd', this._getEventData(mouseUpEvent));
     } else {
-        /**
-         * Click events.
-         * @event Drag#click
-         * @type {MouseEvent}
-         * @property {HTMLElement} target - target element in this event.
-         * @property {MouseEvent} originEvent - original mouse event object.
-         */
+    /**
+     * Click events.
+     * @event Drag#click
+     * @type {MouseEvent}
+     * @property {HTMLElement} target - target element in this event.
+     * @property {MouseEvent} originEvent - original mouse event object.
+     */
         this.fire('click', this._getEventData(mouseUpEvent));
     }
 
     this._clearData();
+};
+
+/**
+ * MouseMove DOM event handler.
+ * @emits Drag#drag
+ * @emits Drag#dragStart
+ * @param {MouseEvent} mouseMoveEvent MouseMove event object.
+ */
+Drag.prototype._onMouseMoveNotification = function(mouseMoveEvent) {
+    if (!this._isMoved && !this._dragStartEventData) {
+        this.fire('mousemove', this._getEventData(mouseMoveEvent));
+    }
 };
 
 util.CustomEvents.mixin(Drag);
