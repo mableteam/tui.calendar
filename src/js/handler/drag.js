@@ -18,6 +18,7 @@ var domevent = require('../common/domevent');
  */
 function Drag(options, container) {
     domevent.on(container, 'mousedown', this._onMouseDown, this);
+    domevent.on(container, 'mousemove', this._onMouseMoveNotification, this);
 
     this.options = util.extend({
         distance: 10,
@@ -61,7 +62,7 @@ function Drag(options, container) {
  * Destroy method.
  */
 Drag.prototype.destroy = function() {
-    domevent.off(this.container, 'mousedown', this._onMouseDown, this);
+    domevent.off(this.container, 'mousemove', this._onMouseMoveNotification, this);
     this._isMoved = null;
     this.container = null;
 };
@@ -238,6 +239,17 @@ Drag.prototype._onMouseUp = function(mouseUpEvent) {
     }
 
     this._clearData();
+};
+
+/**
+ * MouseMove DOM event handler.
+ * @emits Drag#mousemove
+ * @param {MouseEvent} mouseMoveEvent MouseMove event object.
+ */
+Drag.prototype._onMouseMoveNotification = function(mouseMoveEvent) {
+    if (!this._isMoved && !this._dragStartEventData) {
+        this.fire('mousemove', this._getEventData(mouseMoveEvent));
+    }
 };
 
 util.CustomEvents.mixin(Drag);

@@ -1,6 +1,6 @@
 /*!
  * TOAST UI Calendar
- * @version 1.10.0 | Mon Mar 04 2019
+ * @version 1.10.0 | Tue Mar 05 2019
  * @author NHNEnt FE Development Lab <dl_javascript@nhnent.com>
  * @license MIT
  */
@@ -9863,6 +9863,7 @@ var TimeClick = __webpack_require__(/*! ../handler/time/click */ "./src/js/handl
 var TimeCreation = __webpack_require__(/*! ../handler/time/creation */ "./src/js/handler/time/creation.js");
 var TimeMove = __webpack_require__(/*! ../handler/time/move */ "./src/js/handler/time/move.js");
 var TimeResize = __webpack_require__(/*! ../handler/time/resize */ "./src/js/handler/time/resize.js");
+var TimeMouseMove = __webpack_require__(/*! ../handler/time/mouseMove */ "./src/js/handler/time/mouseMove.js");
 
 var DAYGRID_HANDLDERS = {
     'click': DayGridClick,
@@ -9874,7 +9875,8 @@ var TIMEGRID_HANDLERS = {
     'click': TimeClick,
     'creation': TimeCreation,
     'move': TimeMove,
-    'resize': TimeResize
+    'resize': TimeResize,
+    'mousemove': TimeMouseMove
 };
 var DEFAULT_PANELS = [
     {
@@ -9911,7 +9913,7 @@ var DEFAULT_PANELS = [
         name: 'time',
         type: 'timegrid',
         autoHeight: true,
-        handlers: ['click', 'creation', 'move', 'resize'],
+        handlers: ['click', 'creation', 'move', 'resize', 'mousemove'],
         show: true
     }
 ];
@@ -9977,7 +9979,8 @@ module.exports = function(baseController, layoutContainer, dragHandler, options)
         dayname: {},
         creation: {},
         move: {},
-        resize: {}
+        resize: {},
+        mousemove: {}
     };
 
     dayNameContainer = domutil.appendHTMLElement('div', weekView.container, config.classname('dayname-layout'));
@@ -12089,6 +12092,7 @@ var domevent = __webpack_require__(/*! ../common/domevent */ "./src/js/common/do
  */
 function Drag(options, container) {
     domevent.on(container, 'mousedown', this._onMouseDown, this);
+    domevent.on(container, 'mousemove', this._onMouseMoveNotification, this);
 
     this.options = util.extend({
         distance: 10,
@@ -12132,7 +12136,7 @@ function Drag(options, container) {
  * Destroy method.
  */
 Drag.prototype.destroy = function() {
-    domevent.off(this.container, 'mousedown', this._onMouseDown, this);
+    domevent.off(this.container, 'mousemove', this._onMouseMoveNotification, this);
     this._isMoved = null;
     this.container = null;
 };
@@ -12309,6 +12313,17 @@ Drag.prototype._onMouseUp = function(mouseUpEvent) {
     }
 
     this._clearData();
+};
+
+/**
+ * MouseMove DOM event handler.
+ * @emits Drag#mousemove
+ * @param {MouseEvent} mouseMoveEvent MouseMove event object.
+ */
+Drag.prototype._onMouseMoveNotification = function(mouseMoveEvent) {
+    if (!this._isMoved && !this._dragStartEventData) {
+        this.fire('mousemove', this._getEventData(mouseMoveEvent));
+    }
 };
 
 util.CustomEvents.mixin(Drag);
@@ -15557,6 +15572,176 @@ TimeCreationGuide.prototype.applyTheme = function(theme) {
 module.exports = TimeCreationGuide;
 
 /* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../../../node_modules/webpack/buildin/global.js */ "./node_modules/webpack/buildin/global.js")))
+
+/***/ }),
+
+/***/ "./src/js/handler/time/mouseMove.js":
+/*!******************************************!*\
+  !*** ./src/js/handler/time/mouseMove.js ***!
+  \******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/**
+ * @fileoverview Handling creation events from drag handler and time grid view
+ * @author NHN Ent. FE Development Team <dl_javascript@nhnent.com>
+ */
+
+
+var util = __webpack_require__(/*! tui-code-snippet */ "tui-code-snippet");
+var config = __webpack_require__(/*! ../../config */ "./src/js/config.js");
+var domutil = __webpack_require__(/*! ../../common/domutil */ "./src/js/common/domutil.js");
+var domevent = __webpack_require__(/*! ../../common/domevent */ "./src/js/common/domevent.js");
+var TimeCreationGuide = __webpack_require__(/*! ./creationGuide */ "./src/js/handler/time/creationGuide.js");
+var timeCore = __webpack_require__(/*! ./core */ "./src/js/handler/time/core.js");
+
+var CLICK_DELAY = 0;
+
+/**
+ * @constructor
+ * @implements {Handler}
+ * @mixes timeCore
+ * @mixes CustomEvents
+ * @param {Drag} [dragHandler] - Drag handler instance.
+ * @param {TimeGrid} [timeGridView] - TimeGrid view instance.
+ * @param {Base} [baseController] - Base controller instance.
+ */
+function MouseMove(dragHandler, timeGridView, baseController) {
+    /**
+     * Drag handler instance.
+     * @type {Drag}
+     */
+    this.dragHandler = dragHandler;
+
+    /**
+     * TimeGrid view instance.
+     * @type {TimeGrid}
+     */
+    this.timeGridView = timeGridView;
+
+    /**
+     * Base controller instance.
+     * @type {Base}
+     */
+    this.baseController = baseController;
+
+    /**
+     * @type {TimeCreationGuide}
+     */
+    this.guide = new TimeCreationGuide(this);
+
+    /**
+     * Temporary function for single drag session's calc.
+     * @type {function}
+     */
+    this._getScheduleDataFunc = null;
+
+    /**
+     * Temporary function for drag start data cache.
+     * @type {object}
+     */
+    this._dragStart = null;
+
+    /**
+     * @type {boolean}
+     */
+    this._requestOnClick = false;
+
+    dragHandler.on('mousemove', this._onMouseMove, this);
+    dragHandler.on('dragStart', this._onClick, this);
+    dragHandler.on('drag', this._onClick, this);
+}
+
+/**
+ * Destroy method
+ */
+MouseMove.prototype.destroy = function() {
+    var timeGridView = this.timeGridView;
+
+    this.guide.destroy();
+    this.dragHandler.off(this);
+
+    if (timeGridView && timeGridView.container) {
+        domevent.off(timeGridView.container, 'dblclick', this._onDblClick, this);
+    }
+
+    this.dragHandler
+        = this.timeGridView = this.baseController = this._getScheduleDataFunc = this._dragStart = this.guide = null;
+};
+
+/**
+ * Check target element is expected condition for activate this plugins.
+ * @param {HTMLElement} target - The element to check
+ * @returns {(boolean|Time)} - return Time view instance when satiate condition.
+ */
+MouseMove.prototype.checkExpectedCondition = function(target) {
+    var cssClass = domutil.getClass(target),
+        matches;
+
+    if (cssClass === config.classname('time-date-schedule-block-wrap')) {
+        target = target.parentNode;
+        cssClass = domutil.getClass(target);
+    }
+
+    matches = cssClass.match(config.time.getViewIDRegExp);
+
+    if (!matches || matches.length < 2) {
+        return false;
+    }
+
+    return util.pick(this.timeGridView.children.items, matches[1]);
+};
+
+/**
+ * MouseMove#mousemove event handler
+ * @emits TimeCreation#timeCreationClick
+ * @param {object} mouseMoveEventData - event data from MouseMove#click.
+ */
+MouseMove.prototype._onMouseMove = function(mouseMoveEventData) {
+    var self = this;
+    var condResult, getScheduleDataFunc, eventData;
+
+    this.dragHandler.off(
+        {
+            drag: this._onDrag,
+            dragEnd: this._onDragEnd
+        },
+        this
+    );
+
+    condResult = this.checkExpectedCondition(mouseMoveEventData.target);
+    if (!condResult) {
+        return;
+    }
+
+    getScheduleDataFunc = this._retriveScheduleData(condResult);
+    eventData = getScheduleDataFunc(mouseMoveEventData.originEvent);
+
+    this._requestOnClick = true;
+    setTimeout(function() {
+        if (self._requestOnClick) {
+            self.fire('timeCreationClick', eventData);
+        }
+        self._requestOnClick = false;
+    }, CLICK_DELAY);
+    this._dragStart = this._getScheduleDataFunc = null;
+};
+
+/**
+ * MouseMove#click event handler
+ * @emits TimeCreation#timeCreationClick
+ * @param {object} clickEventData - event data from MouseMove#click.
+ */
+MouseMove.prototype._onClick = function() {
+    this.guide.clearGuideElement();
+};
+
+timeCore.mixin(MouseMove);
+util.CustomEvents.mixin(MouseMove);
+
+module.exports = MouseMove;
+
 
 /***/ }),
 
