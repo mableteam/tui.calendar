@@ -15,7 +15,7 @@
         {{#if calendar}}
         <div class="{{CSS_PREFIX}}popup-detail-item"><span class="{{CSS_PREFIX}}icon {{CSS_PREFIX}}calendar-dot" style="background-color: {{schedule.bgColor}}"></span><span class="{{CSS_PREFIX}}content">{{calendar.name}}</span></div>
         {{/if}}
-        {{#if schedule.body}}<div class="{{CSS_PREFIX}}popup-detail-item {{CSS_PREFIX}}popup-detail-item-separate"><span class="{{CSS_PREFIX}}content">{{popupDetailBody-tmpl schedule}}</span></div>{{/if}}
+        {{#if schedule.body}}<div class="{{CSS_PREFIX}}popup-detail-item {{CSS_PREFIX}}popup-detail-item-separate"><span class="{{CSS_PREFIX}}content">{{{ popupDetailBody-tmpl schedule }}}</span></div>{{/if}}
     </div>
     {{#if schedule.isReadOnly}}
     {{else}}
