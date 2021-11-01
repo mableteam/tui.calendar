@@ -1,6 +1,6 @@
 /*!
  * TOAST UI Calendar
- * @version 1.10.0 | Tue Apr 20 2021
+ * @version 1.10.0 | Mon Nov 01 2021
  * @author NHNEnt FE Development Lab <dl_javascript@nhnent.com>
  * @license MIT
  */
